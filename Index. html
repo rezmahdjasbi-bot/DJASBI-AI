@@ -70,7 +70,33 @@ Analyser mon exercice
 </button>
 <p id="reponse"></p>
 </div> 
-<script>
+function calculerScientifique(expression) {
+    try {
+        let e = expression
+            .replace(/×/g, "*")
+            .replace(/÷/g, "/")
+            .replace(/√\(/g, "Math.sqrt(")
+            .replace(/\bsin\(/g, "Math.sin(Math.PI/180*")
+            .replace(/\bcos\(/g, "Math.cos(Math.PI/180*")
+            .replace(/\btan\(/g, "Math.tan(Math.PI/180*")
+            .replace(/\blog\(/g, "Math.log10(")
+            .replace(/\bln\(/g, "Math.log(")
+            .replace(/\bpi\b/gi, "Math.PI")
+            .replace(/\^/g, "**");
+
+        if (!/^[0-9+\-*/().,%\sA-Za-z]*$/.test(e)) {
+            return "Expression non autorisée";
+        }
+
+        const resultat = Function('"use strict"; return (' + e + ')')();
+
+        return Number.isFinite(resultat)
+            ? resultat
+            : "Calcul impossible";
+    } catch {
+        return "Expression invalide";
+    }
+}
 function repondre() {
     let q = document.getElementById("question").value.trim();
     let r = document.getElementById("reponse");
