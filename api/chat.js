@@ -10,7 +10,7 @@ const SYSTEME =
     "Reste concis. Si la question n'est pas scolaire, réponds brièvement et ramène la conversation vers l'apprentissage.";
 
 // Tu peux changer le modèle sans toucher au code : variable Vercel GEMINI_MODEL
-const MODELE = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const MODELE = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 function versParts(content) {
     if (typeof content === "string") return [{ text: content }];
