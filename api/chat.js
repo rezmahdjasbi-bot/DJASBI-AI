@@ -1,5 +1,5 @@
-// Fonction serveur Vercel : /api/chat (version Groq, clé gratuite)
-// La clé est lue dans les variables d'environnement Vercel : GROQ_API_KEY
+// Fonction serveur Vercel : /api/chat (version Google Gemini, clé gratuite)
+// La clé est lue dans les variables d'environnement Vercel : GEMINI_API_KEY
 
 const SYSTEME =
     "Tu es DJASBI AI, un assistant éducatif pour les élèves et étudiants. " +
@@ -9,19 +9,16 @@ const SYSTEME =
     "Si une photo est envoyée, lis l'énoncé avec soin et dis-le si quelque chose est illisible. " +
     "Reste concis. Si la question n'est pas scolaire, réponds brièvement et ramène la conversation vers l'apprentissage.";
 
-// Modèle qui lit le texte ET les images. Modifiable via la variable Vercel GROQ_MODEL
-const MODELE = process.env.GROQ_MODEL || "qwen/qwen3.8-27b";
+// Tu peux changer le modèle sans toucher au code : variable Vercel GEMINI_MODEL
+const MODELE = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-function versOpenAI(content) {
-    if (typeof content === "string") return content;
+function versParts(content) {
+    if (typeof content === "string") return [{ text: content }];
     return content.map(function (b) {
         if (b.type === "image") {
-            return {
-                type: "image_url",
-                image_url: { url: "data:" + b.source.media_type + ";base64," + b.source.data }
-            };
+            return { inline_data: { mime_type: b.source.media_type, data: b.source.data } };
         }
-        return { type: "text", text: b.text };
+        return { text: b.text };
     });
 }
 
@@ -30,9 +27,9 @@ module.exports = async function handler(req, res) {
         return res.status(405).json({ error: "Méthode non autorisée" });
     }
 
-    const cle = process.env.GROQ_API_KEY;
+    const cle = process.env.GEMINI_API_KEY;
     if (!cle) {
-        return res.status(500).json({ error: "Clé manquante côté serveur (GROQ_API_KEY)." });
+        return res.status(500).json({ error: "Clé manquante côté serveur (GEMINI_API_KEY)." });
     }
 
     let messages = req.body && req.body.messages;
@@ -46,25 +43,26 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: "Message invalide." });
     }
 
-    const corps = [{ role: "system", content: SYSTEME }].concat(
-        messages.map(function (m) {
-            return { role: m.role, content: versOpenAI(m.content) };
-        })
-    );
+    const contents = messages.map(function (m) {
+        return { role: m.role === "assistant" ? "model" : "user", parts: versParts(m.content) };
+    });
 
     try {
-        const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "content-type": "application/json",
-                "authorization": "Bearer " + cle
-            },
-            body: JSON.stringify({
-                model: MODELE,
-                messages: corps,
-                max_tokens: 1500
-            })
-        });
+        const r = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/models/" + MODELE + ":generateContent",
+            {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "x-goog-api-key": cle
+                },
+                body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: SYSTEME }] },
+                    contents: contents,
+                    generationConfig: { maxOutputTokens: 1500 }
+                })
+            }
+        );
 
         const data = await r.json();
 
@@ -73,8 +71,8 @@ module.exports = async function handler(req, res) {
             return res.status(502).json({ error: detail });
         }
 
-        let reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
-        reply = reply.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+        const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+        const reply = parts.map(function (p) { return p.text || ""; }).join("");
 
         return res.status(200).json({ reply: reply || "Je n'ai pas pu générer de réponse." });
     } catch (e) {
