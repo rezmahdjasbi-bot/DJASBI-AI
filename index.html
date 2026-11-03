@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJASBI AI</title>
+
+<style>
+body {
+    background: #080d1c;
+    color: white;
+    font-family: Arial;
+    text-align: center;
+    padding: 20px;
+}
+h1 {
+    color: #00d9ff;
+    font-size: 35px;
+}
+.card {
+    background: #131f38;
+    padding: 25px;
+    border-radius: 20px;
+    margin-top: 40px;
+}
+input {
+    width: 90%;
+    padding: 15px;
+    border-radius: 12px;
+    border: none;
+    margin-top: 10px;
+}
+button {
+    background: #00d9ff;
+    padding: 13px 25px;
+    border: none;
+    border-radius: 12px;
+    margin-top: 15px;
+    font-weight: bold;
+}
+#apercu {
+    max-width: 90%;
+    border-radius: 12px;
+    margin-top: 15px;
+    display: none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>DJASBI AI</h1>
+<p>L'intelligence au service de l'éducation</p>
+
+<div class="card">
+<h2>Bienvenue !</h2>
+<p>Pose-moi une question scolaire.</p>
+
+<input id="question" placeholder="Écris ta question...">
+<br>
+<button onclick="repondre()">Envoyer</button>
+<br><br>
+
+<input type="file" id="photo" accept="image/*" capture="environment">
+<br>
+<button onclick="lirePhoto()">Analyser mon exercice</button>
+<br>
+<img id="apercu" alt="Aperçu de l'exercice">
+
+<p id="reponse"></p>
+</div>
+
+<script>
+function repondre() {
+    let q = document.getElementById("question").value.trim();
+    let r = document.getElementById("reponse");
+
+    if (q === "") {
+        r.innerText = "Pose-moi une question !";
+        return;
+    }
+
+    let m = q.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*([+\-*\/])\s*(-?\d+(?:[.,]\d+)?)\s*=?\s*\??\s*$/);
+
+    if (!m) {
+        r.innerText = "Je ne sais pas encore répondre à cette question.";
+        return;
+    }
+
+    let a = Number(m[1].replace(",", "."));
+    let b = Number(m[3].replace(",", "."));
+    let op = m[2];
+    let resultat;
+
+    switch (op) {
+        case "+": resultat = a + b; break;
+        case "-": resultat = a - b; break;
+        case "*": resultat = a * b; break;
+        case "/": resultat = b === 0 ? "Impossible" : a / b; break;
+    }
+
+    r.innerText = "DJASBI AI : La réponse est " + resultat;
+}
+
+function lirePhoto() {
+    let fichier = document.getElementById("photo").files[0];
+    let r = document.getElementById("reponse");
+    let img = document.getElementById("apercu");
+
+    if (!fichier) {
+        r.innerText = "Choisis ou prends d'abord une photo de ton exercice !";
+        return;
+    }
+
+    img.src = URL.createObjectURL(fichier);
+    img.style.display = "block";
+    r.innerText = "Photo reçue ! L'analyse automatique arrive bientôt.";
+}
+</script>
+
+</body>
+</html>
