@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJASBI AI</title>
+
+<style>
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+    color: #fff;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    background: #060a18;
+    position: relative;
+    overflow: hidden;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: -20%;
+    z-index: -2;
+    background:
+        radial-gradient(circle at 20% 25%, rgba(0, 217, 255, 0.35), transparent 40%),
+        radial-gradient(circle at 80% 30%, rgba(124, 58, 237, 0.35), transparent 42%),
+        radial-gradient(circle at 50% 85%, rgba(0, 120, 255, 0.30), transparent 45%);
+    animation: bouger 18s ease-in-out infinite alternate;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image:
+        linear-gradient(rgba(0, 217, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 217, 255, 0.06) 1px, transparent 1px);
+    background-size: 42px 42px;
+}
+
+@keyframes bouger {
+    from { transform: translate(-3%, -2%) scale(1); }
+    to   { transform: translate(3%, 3%) scale(1.15); }
+}
+
+header {
+    text-align: center;
+    padding: 14px 10px 10px;
+    background: rgba(8, 13, 28, 0.55);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(0, 217, 255, 0.25);
+}
+
+header h1 { margin: 0; color: #00d9ff; font-size: 28px; }
+header p { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
+
+#chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bulle {
+    max-width: 85%;
+    padding: 12px 15px;
+    border-radius: 18px;
+    line-height: 1.45;
+    font-size: 15px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.user {
+    align-self: flex-end;
+    background: #00d9ff;
+    color: #04121f;
+    border-bottom-right-radius: 4px;
+}
+
+.ia {
+    align-self: flex-start;
+    background: rgba(19, 31, 56, 0.92);
+    border: 1px solid rgba(0, 217, 255, 0.2);
+    border-bottom-left-radius: 4px;
+}
+
+.bulle img {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: 12px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+#apercuBarre {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(19, 31, 56, 0.9);
+    font-size: 13px;
+}
+
+#apercuBarre img { height: 44px; border-radius: 8px; }
+#apercuBarre button {
+    background: transparent;
+    color: #fff;
+    border: none;
+    font-size: 18px;
+    margin-left: auto;
+}
+
+#barre {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(8, 13, 28, 0.85);
+    border-top: 1px solid rgba(0, 217, 255, 0.25);
+}
+
+#question {
+    flex: 1;
+    padding: 14px;
+    border-radius: 14px;
+    border: none;
+    font-size: 16px;
+    min-width: 0;
+}
+
+.btn {
+    background: #00d9ff;
+    color: #04121f;
+    border: none;
+    border-radius: 14px;
+    padding: 0 16px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.btn:disabled { opacity: 0.5; }
+
+#photo { display: none; }
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>DJASBI AI</h1>
+    <p>L'intelligence au service de l'éducation</p>
+</header>
+
+<div id="chat">
+    <div class="bulle ia">Bonjour ! Je suis DJASBI AI. Pose-moi une question scolaire, ou prends en photo ton exercice avec le bouton 📷 et je t'aide à le comprendre.</div>
+</div>
+
+<div id="apercuBarre">
+    <img id="apercu" alt="Aperçu">
+    <span>Photo prête à envoyer</span>
+    <button onclick="retirerPhoto()">✕</button>
+</div>
+
+<div id="barre">
+    <input type="file" id="photo" accept="image/*" capture="environment">
+    <button class="btn" onclick="document.getElementById('photo').click()">📷</button>
+    <input id="question" placeholder="Écris ta question..." autocomplete="off">
+    <button class="btn" id="envoi" onclick="envoyer()">➤</button>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const champ = document.getElementById("question");
+const boutonEnvoi = document.getElementById("envoi");
+const inputPhoto = document.getElementById("photo");
+
+let historique = [];
+let imageBase64 = null;
+let imageUrlApercu = null;
+
+champ.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") envoyer();
+});
+
+inputPhoto.addEventListener("change", async function () {
+    const fichier = inputPhoto.files[0];
+    if (!fichier) return;
+    const dataUrl = await reduireImage(fichier);
+    imageUrlApercu = dataUrl;
+    imageBase64 = dataUrl.split(",")[1];
+    document.getElementById("apercu").src = dataUrl;
+    document.getElementById("apercuBarre").style.display = "flex";
+});
+
+function retirerPhoto() {
+    imageBase64 = null;
+    imageUrlApercu = null;
+    inputPhoto.value = "";
+    document.getElementById("apercuBarre").style.display = "none";
+}
+
+function reduireImage(fichier) {
+    return new Promise(function (resolve) {
+        const img = new Image();
+        img.onload = function () {
+            const max = 1024;
+            const s = Math.min(1, max / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.round(img.width * s);
+            canvas.height = Math.round(img.height * s);
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(img.src);
+            resolve(canvas.toDataURL("image/jpeg", 0.75));
+        };
+        img.src = URL.createObjectURL(fichier);
+    });
+}
+
+function ajouterBulle(texte, type, image) {
+    const b = document.createElement("div");
+    b.className = "bulle " + type;
+    if (image) {
+        const i = document.createElement("img");
+        i.src = image;
+        b.appendChild(i);
+    }
+    if (texte) b.appendChild(document.createTextNode(texte));
+    chat.appendChild(b);
+    chat.scrollTop = chat.scrollHeight;
+    return b;
+}
+
+async function envoyer() {
+    const texte = champ.value.trim();
+    if (!texte && !imageBase64) return;
+
+    const aImage = !!imageBase64;
+    const consigne = texte || "Analyse cet exercice et explique-moi comment le résoudre étape par étape.";
+
+    ajouterBulle(texte, "user", imageUrlApercu);
+
+    let contenu;
+    if (aImage) {
+        contenu = [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } },
+            { type: "text", text: consigne }
+        ];
+    } else {
+        contenu = consigne;
+    }
+
+    champ.value = "";
+    retirerPhoto();
+    boutonEnvoi.disabled = true;
+
+    const attente = ajouterBulle("DJASBI AI réfléchit...", "ia");
+
+    try {
+        const reponse = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: historique.concat([{ role: "user", content: contenu }]) })
+        });
+        const data = await reponse.json();
+
+        if (!reponse.ok) throw new Error(data.error || "Erreur du serveur");
+
+        attente.textContent = data.reply;
+
+        historique.push({ role: "user", content: aImage ? consigne + " (photo d'exercice envoyée)" : consigne });
+        historique.push({ role: "assistant", content: data.reply });
+        if (historique.length > 12) historique = historique.slice(-12);
+    } catch (e) {
+        attente.textContent = "Désolé, une erreur est survenue : " + e.message;
+    }
+
+    boutonEnvoi.disabled = false;
+    chat.scrollTop = chat.scrollHeight;
+}
+</script>
+
+</body>
+  </html>
